@@ -1,0 +1,16 @@
+{
+  "name": "campus-ledger",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Campus Ledger - student budget tracker with EDITH AI (Capacitor Android wrapper)",
+  "scripts": {
+    "setup": "node setup.js",
+    "sync": "node setup.js",
+    "open": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  }
+}

@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Campus Ledger — Student Budget Tracker (EDITH AI)</title>
+
+  <!-- PWA: makes Chrome on Android offer "Install app" (creates a WebAPK) -->
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#070A12" />
+  <meta name="application-name" content="Campus Ledger" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Campus Ledger" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="icon" type="image/png" href="./icon-192.png" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="appContainer" class="app-layout locked">
+
+    <!-- Toast Notification Banner -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Heads-Up Android Notification Banner -->
+    <div id="headsUpBanner" class="heads-up-banner hidden">
+      <div class="banner-icon">🔔</div>
+      <div class="banner-content">
+        <div class="banner-header">
+          <span id="bannerApp" class="banner-app">PhonePe</span>
+          <span class="banner-time">Just now</span>
+        </div>
+        <p id="bannerText" class="banner-text">Transaction alert received</p>
+      </div>
+      <button id="bannerDismissBtn" class="banner-close" aria-label="Dismiss">&times;</button>
+    </div>
+
+    <!-- Main Navigation Header -->
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="brand-group">
+          <div class="brand-icon">🏛️</div>
+          <div>
+            <div class="brand-title-wrap">
+              <span class="brand-title">Campus Ledger</span>
+              <span class="badge-amber">EDITH AI</span>
+            </div>
+            <p id="userGreeting" class="user-greeting">Logged Out</p>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <button id="themeToggleBtn" class="btn-icon" title="Toggle Dark/Light Mode">
+            <span id="themeIcon">☀️</span>
+          </button>
+
+          <button id="notifBellBtn" class="btn-icon notif-bell" title="Notifications & Clipboard Alerts">
+            🔔
+            <span id="notifBadge" class="notif-badge hidden">0</span>
+          </button>
+
+          <div id="authHeaderBtnContainer"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Tabs / Slides -->
+    <main class="main-content">
+
+      <!-- SLIDE 1: DAILY LEDGER -->
+      <section id="slide-1" class="tab-slide active">
+
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-head">
+              <span class="metric-label">Current Balance</span>
+              <button id="editBalanceBtn" class="metric-sub-action" title="Edit Account Balance">
+                ⚙️ <span id="balanceModeLabel">Set Balance</span>
+              </button>
+            </div>
+            <div class="metric-value-row">
+              <span class="currency">₹</span>
+              <span id="metricBalance" class="metric-value text-emerald">0</span>
+            </div>
+            <div class="metric-foot text-mute"><span id="balanceFootText">Updates on transactions</span></div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-head">
+              <span class="metric-label">Monthly Allowance</span>
+              <span class="status-dot green"></span>
+            </div>
+            <div class="metric-value-row">
+              <span class="currency">₹</span>
+              <span id="metricAllowance" class="metric-value">0</span>
+            </div>
+            <div class="metric-foot text-mute">Budget period active</div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-head">
+              <span class="metric-label">Spent this Month</span>
+              <span id="spendPctBadge" class="badge-rose">0%</span>
+            </div>
+            <div class="metric-value-row">
+              <span class="currency">₹</span>
+              <span id="metricSpent" class="metric-value text-rose">0</span>
+            </div>
+            <div class="metric-foot text-mute">Across 7 categories</div>
+          </div>
+
+          <div class="metric-card highlight-card">
+            <div class="metric-head">
+              <span class="metric-label text-amber">Safe Daily Limit</span>
+              <span class="badge-amber">Dynamic</span>
+            </div>
+            <div class="metric-value-row">
+              <span class="currency text-amber">₹</span>
+              <span id="metricDailySafe" class="metric-value text-amber">0</span>
+              <span class="per-day">/day</span>
+            </div>
+            <div class="metric-foot text-amber-dim">
+              <span id="metricDaysRemaining">0</span> days left this month
+            </div>
+          </div>
+        </div>
+
+        <div id="budgetWarningBanner" class="alert-banner warning hidden">
+          ⚠️ <span id="budgetWarningText"></span>
+        </div>
+
+        <!-- Pending Clipboard Transactions (When merchant or category is unknown) -->
+        <div id="pendingTxCard" class="card-box pending-tx-box hidden">
+          <div class="box-header">
+            <div class="box-title-group">
+              <span class="box-icon">📋</span>
+              <div>
+                <h3 class="box-title">Clipboard Transactions Needs Details</h3>
+                <p class="box-desc">Merchant or category was unknown — choose Category, Merchant &amp; Item Purchased to log</p>
+              </div>
+            </div>
+            <span id="pendingTxCountBadge" class="badge-amber">0 Pending</span>
+          </div>
+          <div id="pendingTxListContainer" class="pending-tx-list"></div>
+        </div>
+
+        <!-- Transactions Ledger -->
+        <div class="card-box ledger-box">
+          <div class="box-header">
+            <div>
+              <h3 class="box-title">Transactions Ledger</h3>
+              <p class="box-desc">Searchable list of all recorded expenses and incomes</p>
+            </div>
+            <button id="openAddTxModalBtn" class="btn-amber">✦ Add Entry</button>
+          </div>
+
+          <div class="ledger-filter-row">
+            <input type="text" id="txSearchInput" class="search-input" placeholder="Search merchant, item, or category..." />
+            <div class="filter-pills">
+              <button class="filter-btn active" data-filter="all">All</button>
+              <button class="filter-btn" data-filter="debit">Expenses</button>
+              <button class="filter-btn" data-filter="credit">Incomes</button>
+            </div>
+          </div>
+
+          <div id="txListContainer" class="tx-list"></div>
+        </div>
+      </section>
+
+      <!-- SLIDE 2: ANALYTICS & BUDGET LIMITS -->
+      <section id="slide-2" class="tab-slide">
+
+        <div class="card-box">
+          <div class="box-header">
+            <div>
+              <h3 class="box-title">50 / 30 / 20 Student Budget Balance</h3>
+              <p class="box-desc">Target: 50% Needs, 30% Wants, 20% Protected Savings (share of monthly allowance)</p>
+            </div>
+          </div>
+
+          <div class="stacked-bar-container">
+            <div id="barNeeds" class="stacked-bar-segment needs" style="width: 50%;">Needs 50%</div>
+            <div id="barWants" class="stacked-bar-segment wants" style="width: 30%;">Wants 30%</div>
+            <div id="barSavings" class="stacked-bar-segment savings" style="width: 20%;">Savings 20%</div>
+          </div>
+
+          <div class="rule-metrics-row">
+            <div class="rule-metric-item">
+              <span class="rule-dot needs"></span>
+              <div>
+                <div class="text-mute text-xs">Needs (Food, Bills, Books)</div>
+                <strong id="valNeeds">₹0 (0%)</strong>
+              </div>
+            </div>
+            <div class="rule-metric-item">
+              <span class="rule-dot wants"></span>
+              <div>
+                <div class="text-mute text-xs">Wants (Outings, Shopping, Travel)</div>
+                <strong id="valWants">₹0 (0%)</strong>
+              </div>
+            </div>
+            <div class="rule-metric-item">
+              <span class="rule-dot savings"></span>
+              <div>
+                <div class="text-mute text-xs">Savings (Unspent)</div>
+                <strong id="valSavings">₹0 (0%)</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="card-box">
+            <h3 class="box-title">Spending by Category</h3>
+            <div class="donut-chart-wrap">
+              <svg id="categoryDonutSvg" viewBox="0 0 100 100" class="donut-svg"></svg>
+              <div id="donutLegend" class="donut-legend"></div>
+            </div>
+          </div>
+
+          <div class="card-box">
+            <h3 class="box-title">7-Day Spending Trend</h3>
+            <div id="trendBarChart" class="trend-bars-wrap"></div>
+          </div>
+        </div>
+
+        <div class="card-box">
+          <div class="box-header">
+            <div>
+              <h3 class="box-title">Category Monthly Budgets &amp; Limits</h3>
+              <p class="box-desc">Tap ✏️ to change a monthly cap. Warnings appear at 80%.</p>
+            </div>
+          </div>
+          <div id="categoryBudgetsContainer" class="category-budgets-grid"></div>
+        </div>
+      </section>
+
+      <!-- SLIDE 3: EDITH AI COACH, GOALS & REMINDERS -->
+      <section id="slide-3" class="tab-slide">
+
+        <div class="slide-nav-bar">
+          <button id="aiBackBtn" class="btn-back">← Back to Ledger</button>
+          <div class="ai-status-group">
+            <div class="ai-status-indicator">
+              <span class="status-pulse"></span>
+              <span id="edithOnlineText">EDITH AI Online</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-box ai-hero-box">
+          <div class="ai-hero-header">
+            <div class="ai-avatar">🤖</div>
+            <div>
+              <h3 class="ai-title">EDITH Voice &amp; Financial Advisor</h3>
+              <p class="ai-desc">Speak directly with your voice or type to ask about the app, your ledger, or any financial advice.</p>
+            </div>
+          </div>
+
+          <div class="voice-controls-bar">
+            <button id="micBtn" class="mic-button" type="button" title="Tap to speak directly with EDITH">
+              <span id="micIcon" class="mic-icon">🎙️</span>
+              <span id="micLabel">Tap to Speak with EDITH</span>
+            </button>
+            <label class="toggle-label">
+              <input type="checkbox" id="ttsVoiceToggle" checked />
+              <span>🔊 Voice Reply (TTS)</span>
+            </label>
+          </div>
+
+          <div id="chatMessages" class="chat-thread"></div>
+
+          <div class="chat-input-row">
+            <button id="chatMicBtn" class="btn-icon mic-inline-btn" type="button" title="Speak to EDITH">🎙️</button>
+            <input type="text" id="chatInput" placeholder="Speak or ask EDITH about the app, finances, or budgets..." />
+            <button id="sendChatBtn" class="btn-amber">Send ✦</button>
+          </div>
+        </div>
+
+        <div class="card-box">
+          <div class="box-header">
+            <div>
+              <h3 class="box-title">🎯 Savings Goals</h3>
+              <p class="box-desc">Protect your savings from impulsive daily spending</p>
+            </div>
+            <button id="openAddGoalModalBtn" class="btn-small-outline">+ New Goal</button>
+          </div>
+          <div id="goalsContainer" class="goals-grid"></div>
+        </div>
+
+        <div class="card-box">
+          <div class="box-header">
+            <div>
+              <h3 class="box-title">⏰ Budget Reminders</h3>
+              <p class="box-desc">Scheduled alerts for fees, subscriptions, and hostel expenses</p>
+            </div>
+            <button id="openAddReminderModalBtn" class="btn-small-outline">+ Add Reminder</button>
+          </div>
+          <div id="remindersContainer" class="reminders-list"></div>
+        </div>
+      </section>
+
+      <!-- SLIDE 4: SETTINGS -->
+      <section id="slide-4" class="tab-slide">
+
+        <!-- Native NotificationInterceptor (Settings) -->
+        <div class="card-box sensor-box">
+          <div class="box-header">
+            <div class="box-title-group">
+              <span class="box-icon">📱</span>
+              <div>
+                <h3 class="box-title">Android Notification &amp; SMS Interceptor</h3>
+                <p class="box-desc">
+                  Reads all SMS &amp; notifications, auto-logging strictly from <strong>PhonePe, Google Pay, Paytm, RuPay, FamPay, UPI</strong> &amp; <strong>Bank SMS</strong>. Sends clipboard prompt when merchant/category is unknown.
+                </p>
+              </div>
+            </div>
+            <span id="notifListenerBadge" class="badge-amber">Checking...</span>
+          </div>
+
+          <div class="sensor-actions-row single-action">
+            <button id="enableNotifListenerBtn" class="btn-action-emerald full-width">
+              🔔 <span id="enableNotifListenerLabel">Enable Notification Access</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card-box">
+          <div class="box-header">
+            <div>
+              <h3 class="box-title">Account Details &amp; Profile</h3>
+              <p class="box-desc">Manage the active profile, account balance and device session</p>
+            </div>
+            <button id="switchProfileBtn" class="btn-small-outline">Switch Profile</button>
+          </div>
+
+          <div class="profile-info-grid">
+            <div id="profAvatar" class="profile-avatar">👨‍🎓</div>
+            <div class="profile-meta">
+              <h4 id="profName" class="prof-name">—</h4>
+              <p id="profEmail" class="prof-email">—</p>
+              <div class="prof-badge-row">
+                <span id="profRoleBadge" class="badge-amber">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="balance-settings-box">
+            <h4 class="settings-subtitle">Account Balance Configuration</h4>
+            <div id="manualBalanceInputGroup" class="manual-input-group" style="margin-top: 8px; padding-top: 0; border-top: none;">
+              <label for="manualBalanceField">Set Current Balance (₹):</label>
+              <div class="input-with-button">
+                <input type="number" id="manualBalanceField" value="0" min="0" />
+                <button id="saveManualBalanceBtn" class="btn-amber">Save Balance</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="logout-action-box">
+            <div>
+              <h4 class="logout-title">Device Session Security</h4>
+              <p class="logout-desc">
+                <strong>Log Out</strong> verifies your current account password, ends this session, and lets you switch to another account or create a new account if none is available.
+              </p>
+            </div>
+            <button id="safeLogoutBtn" class="btn-rose">🔒 Log Out &amp; Switch</button>
+          </div>
+        </div>
+
+        <!-- Multi-account manager -->
+        <div class="card-box">
+          <div class="box-header">
+            <div>
+              <h3 class="box-title">👥 All Accounts on This Device</h3>
+              <p class="box-desc">Each account has its own password and its own private data.</p>
+            </div>
+            <button id="openAddAccountModalBtn" class="btn-amber">+ New Account</button>
+          </div>
+          <div id="accountsListContainer" class="accounts-grid"></div>
+        </div>
+
+        <!-- Hidden per user request: Account Database (Local Storage) -->
+        <div class="card-box hidden" style="display: none !important;">
+          <div class="box-header">
+            <div>
+              <h3 class="box-title">🗄️ Account Database (Local Storage)</h3>
+            </div>
+            <button id="copyDbJsonBtn" class="btn-small-outline">Copy JSON</button>
+          </div>
+          <pre id="dbJsonViewer" class="db-json-viewer"></pre>
+        </div>
+
+        <!-- Hidden per user request: Data Management -->
+        <div class="card-box hidden" style="display: none !important;">
+          <h3 class="box-title">Data Management</h3>
+          <div class="data-btn-row">
+            <button id="exportJsonBtn" class="btn-small-outline">📥 Export My Ledger Data (JSON)</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+      <button class="nav-tab active" data-target="slide-1">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Ledger</span>
+      </button>
+      <button class="nav-tab" data-target="slide-2">
+        <span class="nav-icon">📈</span>
+        <span class="nav-label">Analytics</span>
+      </button>
+      <button class="nav-tab" data-target="slide-3">
+        <span class="nav-icon">🤖</span>
+        <span class="nav-label">EDITH AI</span>
+      </button>
+      <button class="nav-tab" data-target="slide-4">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">Settings</span>
+      </button>
+    </nav>
+
+    <!-- MODAL: LOGIN -->
+    <div id="loginModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <button id="loginBackBtn" class="btn-back">← Back</button>
+          <h3 class="modal-title">Account Sign In</h3>
+          <button id="loginCloseBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-desc">
+            Choose your account or enter your email and password to sign in.
+          </p>
+
+          <div class="form-group">
+            <label>Choose Account:</label>
+            <div id="loginAccountsPillsContainer" class="preset-profiles-row"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="loginEmail">Email Address</label>
+            <input type="email" id="loginEmail" autocomplete="off" />
+          </div>
+
+          <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" autocomplete="new-password" placeholder="Enter password" />
+          </div>
+
+          <p id="loginError" class="form-error hidden"></p>
+
+          <button id="submitLoginBtn" class="btn-amber full-width">Sign In</button>
+          <button id="openCreateFromLoginBtn" class="link-btn full-width" type="button">+ Create a new account</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: PASSWORD-PROTECTED LOG OUT & SWITCH (Device Session Security) -->
+    <div id="logoutConfirmModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <button id="logoutCancelBtn" class="btn-back" type="button">← Cancel</button>
+          <h3 class="modal-title">Confirm Log Out</h3>
+          <button id="closeLogoutModalBtn" class="modal-close" type="button">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p id="logoutModalAccountDesc" class="modal-desc">
+            Enter the password for your current account to log out and switch or create a new account.
+          </p>
+
+          <div class="form-group">
+            <label for="logoutPasswordInput">Current Account Password</label>
+            <input type="password" id="logoutPasswordInput" autocomplete="current-password" placeholder="Enter your account password" />
+          </div>
+
+          <div id="logoutSwitchTargetGroup" class="form-group hidden">
+            <label for="logoutNextAccountSelect">After Logging Out, Switch To:</label>
+            <select id="logoutNextAccountSelect"></select>
+          </div>
+
+          <p id="logoutErrorMsg" class="form-error hidden"></p>
+
+          <button id="confirmLogoutBtn" class="btn-rose full-width" type="button">🔒 Verify Password &amp; Log Out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: CATEGORIZE CLIPBOARD TRANSACTION (When Merchant / Category is Unknown) -->
+    <div id="categorizeTxModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">📋 Complete Clipboard Transaction</h3>
+          <button id="closeCategorizeTxModalBtn" class="modal-close" type="button">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="clipboard-alert-preview">
+            <div class="clipboard-alert-top">
+              <span id="catModalAppBadge" class="badge-amber">Bank / UPI Alert</span>
+              <span class="badge-emerald">📋 Copied to Clipboard</span>
+            </div>
+            <div id="catModalAmountDisplay" class="clipboard-alert-amount">₹0</div>
+            <p id="catModalRawText" class="clipboard-alert-text">—</p>
+          </div>
+
+          <p class="modal-desc" style="margin-bottom: 12px;">
+            The listener could not automatically recognize the merchant and category. Choose the category, name the merchant, and enter the item purchased:
+          </p>
+
+          <div class="form-group">
+            <label for="catModalCategory">Choose Category</label>
+            <select id="catModalCategory">
+              <option value="Food & Dining">🍔 Food &amp; Dining</option>
+              <option value="Travel & Commute">🚕 Travel &amp; Commute</option>
+              <option value="Books & Academics">📚 Books &amp; Academics</option>
+              <option value="Entertainment & Outings">🍿 Entertainment &amp; Outings</option>
+              <option value="Shopping">🛍️ Shopping</option>
+              <option value="Bills & Utilities">⚡ Bills &amp; Utilities</option>
+              <option value="Emergency / Health">💊 Emergency / Health</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="catModalMerchant">Merchant / Shop Name</label>
+            <input type="text" id="catModalMerchant" placeholder="e.g. Campus Canteen, Local Store, Auto Driver" autocomplete="off" />
+          </div>
+
+          <div class="form-group">
+            <label for="catModalItem">Item Purchased</label>
+            <input type="text" id="catModalItem" placeholder="e.g. Masala Dosa, Notebook, Metro Ticket" autocomplete="off" />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label class="toggle-label" style="cursor: pointer;">
+              <input type="checkbox" id="catModalRemember" checked />
+              <span>🧠 Remember this merchant for future auto-logging</span>
+            </label>
+          </div>
+
+          <p id="catModalError" class="form-error hidden"></p>
+
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button id="confirmCategorizeTxBtn" class="btn-amber" style="flex: 2;" type="button">✦ Log Transaction</button>
+            <button id="laterCategorizeTxBtn" class="btn-small-outline" style="flex: 1;" type="button">Later</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: CREATE ACCOUNT -->
+    <div id="addAccountModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <button id="addAccountBackBtn" class="btn-back">← Back</button>
+          <h3 class="modal-title">Create Account</h3>
+          <button id="closeAddAccountModalBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="newAccountName">Account Name</label>
+            <input type="text" id="newAccountName" placeholder="Enter your name" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="newAccountEmail">Email</label>
+            <input type="email" id="newAccountEmail" placeholder="name@example.com" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="newAccountRole">Account Type</label>
+            <select id="newAccountRole">
+              <option value="Student">🎓 Student</option>
+              <option value="Parent">👨‍💼 Parent</option>
+              <option value="Bank">🏦 Bank</option>
+              <option value="Cash">💵 Cash Wallet</option>
+              <option value="Shared">🤝 Shared</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="newAccountPassword">Password (min 6 characters)</label>
+            <input type="password" id="newAccountPassword" autocomplete="new-password" />
+          </div>
+          <div class="form-group">
+            <label for="newAccountPassword2">Confirm Password</label>
+            <input type="password" id="newAccountPassword2" autocomplete="new-password" />
+          </div>
+          <div class="form-group">
+            <label for="newAccountAllowance">Monthly Allowance (₹)</label>
+            <input type="number" id="newAccountAllowance" placeholder="Enter monthly allowance" min="0" />
+          </div>
+          <div class="form-group">
+            <label for="newAccountBalance">Starting Balance (₹) — optional</label>
+            <input type="number" id="newAccountBalance" placeholder="Defaults to monthly allowance" min="0" />
+          </div>
+          <p id="addAccountError" class="form-error hidden"></p>
+          <button id="saveAccountBtn" class="btn-amber full-width">Create Account &amp; Sign In</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: NOTIFICATIONS -->
+    <div id="notifModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">Captured Notifications &amp; Clipboard</h3>
+          <button id="closeNotifModalBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="notifListContainer"></div>
+          <button id="clearNotifBtn" class="btn-small-outline full-width" style="margin-top:12px;">Clear all</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: ADD / EDIT TRANSACTION -->
+    <div id="addTxModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 id="txModalTitle" class="modal-title">Record Transaction</h3>
+          <button id="closeAddTxModalBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Type</label>
+            <div class="type-toggle-row">
+              <button id="txTypeDebit" class="type-btn active" data-type="debit">Expense (Debit)</button>
+              <button id="txTypeCredit" class="type-btn" data-type="credit">Income (Credit)</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Amount (₹)</label>
+            <input type="number" id="newTxAmount" placeholder="Enter amount" min="0" />
+          </div>
+          <div class="form-group">
+            <label>Merchant / Item</label>
+            <input type="text" id="newTxMerchant" placeholder="Enter merchant or item purchased" />
+          </div>
+          <div class="form-group">
+            <label>Category (expenses)</label>
+            <select id="newTxCategory">
+              <option value="Food & Dining">Food &amp; Dining</option>
+              <option value="Travel & Commute">Travel &amp; Commute</option>
+              <option value="Books & Academics">Books &amp; Academics</option>
+              <option value="Entertainment & Outings">Entertainment &amp; Outings</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Bills & Utilities">Bills &amp; Utilities</option>
+              <option value="Emergency / Health">Emergency / Health</option>
+            </select>
+          </div>
+          <button id="saveTxBtn" class="btn-amber full-width">Save Transaction</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: ADD SAVINGS GOAL -->
+    <div id="addGoalModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">Create Savings Goal</h3>
+          <button id="closeAddGoalModalBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Goal Name</label>
+            <input type="text" id="newGoalTitle" placeholder="Enter goal name" />
+          </div>
+          <div class="form-group">
+            <label>Target Amount (₹)</label>
+            <input type="number" id="newGoalTarget" placeholder="Enter target amount" min="1" />
+          </div>
+          <div class="form-group">
+            <label>Initial Saved Amount (₹)</label>
+            <input type="number" id="newGoalInitial" placeholder="0" min="0" />
+          </div>
+          <button id="saveGoalBtn" class="btn-amber full-width">Create Goal</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: ADD TO SAVINGS GOAL (User decides amount & method) -->
+    <div id="contributeGoalModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">🎯 Add to Savings Goal</h3>
+          <button id="closeContributeGoalModalBtn" class="modal-close" type="button">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="clipboard-alert-preview" style="margin-bottom: 14px;">
+            <div class="clipboard-alert-top">
+              <span id="contribGoalTitleBadge" class="badge-amber">Savings Goal</span>
+              <span id="contribGoalRemainingBadge" class="badge-emerald">₹0 to go</span>
+            </div>
+            <div id="contribGoalProgressText" style="font-size: 0.92rem; font-weight: 700; color: var(--text-main);">Saved ₹0 of ₹0</div>
+          </div>
+
+          <div class="form-group">
+            <label for="contribGoalAmount">How much would you like to add? (₹)</label>
+            <input type="number" id="contribGoalAmount" placeholder="Enter custom amount (₹)" min="1" />
+            <div class="preset-profiles-row" style="margin-top: 8px;">
+              <button type="button" class="profile-select-pill goal-quick-amt-btn" data-amt="100">+₹100</button>
+              <button type="button" class="profile-select-pill goal-quick-amt-btn" data-amt="250">+₹250</button>
+              <button type="button" class="profile-select-pill goal-quick-amt-btn" data-amt="500">+₹500</button>
+              <button type="button" class="profile-select-pill goal-quick-amt-btn" data-amt="1000">+₹1,000</button>
+              <button type="button" class="profile-select-pill goal-quick-amt-btn" data-amt="remaining">Full Remaining</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="contribGoalMethod">How would you like to add it?</label>
+            <select id="contribGoalMethod">
+              <option value="balance_ledger">🏦 Transfer from Current Balance &amp; Log in Ledger</option>
+              <option value="balance_only">💳 Deduct from Current Balance Only</option>
+              <option value="direct">💵 Add Directly to Goal (Cash / External Savings)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="contribGoalNote">Note / Source (optional)</label>
+            <input type="text" id="contribGoalNote" placeholder="e.g. Weekly pocket money, Cash saved, UPI transfer" autocomplete="off" />
+          </div>
+
+          <p id="contribGoalError" class="form-error hidden"></p>
+
+          <button id="confirmContributeGoalBtn" class="btn-amber full-width" type="button">✦ Add to Goal</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: ADD REMINDER -->
+    <div id="addReminderModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">Add Budget Reminder</h3>
+          <button id="closeAddReminderModalBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Reminder Title</label>
+            <input type="text" id="newReminderTitle" placeholder="Enter reminder title" />
+          </div>
+          <div class="form-group">
+            <label>Expected Amount (₹)</label>
+            <input type="number" id="newReminderAmount" placeholder="Enter expected amount" min="0" />
+          </div>
+          <div class="form-group">
+            <label>Due Date</label>
+            <input type="date" id="newReminderDate" />
+          </div>
+          <button id="saveReminderBtn" class="btn-amber full-width">Add Reminder</button>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+  </div>
+
+<script src="app.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    if (window.CampusAndroid || window.androidBridge) {
+      navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+      if (window.caches) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+    } else {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js")
+          .catch(console.error);
+      });
+    }
+  }
+</script>
+</body>
+</html>

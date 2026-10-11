@@ -1,0 +1,9 @@
+{
+  "appId": "com.campusledger.app",
+  "appName": "Campus Ledger",
+  "webDir": "www",
+  "backgroundColor": "#0B0F17",
+  "android": {
+    "allowMixedContent": false
+  }
+}
